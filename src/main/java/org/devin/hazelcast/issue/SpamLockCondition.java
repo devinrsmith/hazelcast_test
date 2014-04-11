@@ -7,21 +7,24 @@ import com.hazelcast.core.ICondition;
 import com.hazelcast.core.ILock;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by devin on 4/11/14.
  */
 public class SpamLockCondition extends Thread {
-    private final HazelcastInstance hazel;
+    private final Lock lock;
+    private final Condition condition;
 
-    public SpamLockCondition(HazelcastInstance hazel) {
-        this.hazel = hazel;
+    public SpamLockCondition(Lock lock, Condition condition) {
+        this.lock = lock;
+        this.condition = condition;
     }
 
     @Override
     public void run() {
-        final ILock lock = hazel.getLock("myLock");
-        final ICondition condition = lock.newCondition("myCondition");
         while (!isInterrupted()) {
             lock.lock();
             try {
@@ -39,10 +42,16 @@ public class SpamLockCondition extends Thread {
     public static void main(String[] args) {
         final Config config = new Config();
         final HazelcastInstance hazel = Hazelcast.newHazelcastInstance(config);
+        final ILock lock = hazel.getLock("myLock");
+        final ICondition condition = lock.newCondition("myCondition");
+
+//        final Lock lock = new ReentrantLock();
+//        final Condition condition = lock.newCondition();
+
         final int numThreads = 4;
         final Thread[] threads = new Thread[numThreads];
         for (int i = 0; i < numThreads; ++i) {
-            threads[i] = new SpamLockCondition(hazel);
+            threads[i] = new SpamLockCondition(lock, condition);
         }
         for (int i = 0; i < numThreads; ++i) {
             threads[i].start();
